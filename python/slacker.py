@@ -5,7 +5,8 @@ import time
 import json
 from slackclient import SlackClient
 
-slack_client = SlackClient("xoxb-320650244449-2LPv18JyV3zRWiDLru61wwMS")
+# when i have time, instead slack_client will read from ../secrets/slack.key
+slack_client = SlackClient("hint, don't publish your slack api key")
 
 user_list = slack_client.api_call("users.list")
 for user in user_list.get('members'):
@@ -26,14 +27,12 @@ if slack_client.rtm_connect():
                         split("<@$s>" % slack_user_id)[1].\
                         strip()
 
-                if re.match(r'.*(yum).*', message_text, re.IGNORECASE):
-                    reply = "There is food"
-
+                if message_text:
                     slack_client.api_call(
-                            "chat.postMessage",
-                            channel=message['channel'],
-                            text="Oh? %s" % reply,
-                            as_user=True)
+                       "chat.postMessage",
+                       channel=message['channel'],
+                       text="Oh?",
+                       as_user=True)
     time.sleep(1)
                 
 
