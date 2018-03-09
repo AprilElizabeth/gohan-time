@@ -122,7 +122,7 @@ def post_image():
 
 def cleanup():
     GPIO.cleanup()
-    print("Goodbye!")
+    print("Cleaning up GPIO...")
 
 if __name__ == "__main__":
     if slack_client.rtm_connect(with_team_state=False):
