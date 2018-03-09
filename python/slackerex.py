@@ -17,7 +17,6 @@ button = 17
 
 # Set some GPIO stuff
 GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
 GPIO.setup(green, GPIO.OUT)
 GPIO.setup(red, GPIO.OUT)
 GPIO.setup(button, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -129,12 +128,18 @@ if __name__ == "__main__":
         print("Starter Bot connected and running!")
         # Read bot's user ID by calling Web API method `auth.test`
         starterbot_id = slack_client.api_call("auth.test")["user_id"]
-        while True:
-            command, channel = parse_bot_commands(slack_client.rtm_read())
+        try:
+            while True:
+                command, channel = parse_bot_commands(slack_client.rtm_read())
             if command:
                 handle_command(command, channel)
-            time.sleep(RTM_READ_DELAY)
-    else:
-        print("Connection failed. Exception traceback printed above.")
+                time.sleep(RTM_READ_DELAY)
+            else:
+                print("Connection failed. Exception traceback printed above.")
+
+        except KeyboardInterrupt:
+            cleanup()
+        except:
+            print "Something else happened, quitting"
 
 atexit.register(cleanup)
