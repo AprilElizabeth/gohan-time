@@ -4,13 +4,12 @@ import os
 import time
 import re
 import requests
-import atexit
+import signal
 import RPi.GPIO as GPIO
 from slackclient import SlackClient
 from picamera import PiCamera
 
 # Set LED Pinouts
-
 green = 18
 red = 23
 button = 17
@@ -33,6 +32,8 @@ starterbot_id = None
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
 token = os.environ.get('SLACK_API_TOKEN')
+
+# Handle slack RTM stuff
 
 def parse_bot_commands(slack_events):
     """
@@ -82,17 +83,19 @@ def handle_command(command, channel):
 def share_noms():
     """
     Takes a pic and shares it with #random
-    TODO: Ask the user for some input, like "yum Delicious off-brand cola in the breakroom!" i guess?
     """
     message = "How kind of you to share!"
-    take_picture()
+    #shutter()
+    #take_picture()
     post_image()
     return(message)
+
 def see_noms():
     """
     Just takes a photo of whatever is there and kicks it out
     """
     message = "美味しいものなの?"
+    take_picture()
     return(message)
 
 def take_picture():
@@ -119,13 +122,32 @@ def post_image():
             }
     r = requests.post("https://slack.com/api/files.upload", params=payload, files=tasty_treat)
 
+def shutter():
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1920, 1080)
+        camera.start_preview()
+        GPIO.wait_for_edge(17, GPIO.FALLING)
+        GPIO.output(red, GPIO.HIGH)
+        GPIO.output(green, GPIO.LOW)
+        time.sleep(2)
+        camera.capture('/home/april/gohan-time/images.oishii.jpg')
+        camera.stop_preview()
+        camera.close()
+        GPIO.output(red, GPIO.LOW)
+        GPIO.output(green, GPIO.HIGH)
+        share_noms()
+
+def handleSIGTERM():
+    GPIO.cleanup()
+signal.signal(signal.SIGTERM, handleSIGTERM)
+
 def cleanup():
     GPIO.cleanup()
-    print("Goodbye!")
+    print("Cleaning up GPIO...sayonara.")
 
 if __name__ == "__main__":
     if slack_client.rtm_connect(with_team_state=False):
-        print("Starter Bot connected and running!")
+        print("Gohan Time is connected and running!")
         # Read bot's user ID by calling Web API method `auth.test`
         starterbot_id = slack_client.api_call("auth.test")["user_id"]
         try:
@@ -138,8 +160,8 @@ if __name__ == "__main__":
                 print("Connection failed. Exception traceback printed above.")
 
         except KeyboardInterrupt:
+            print("\nCaught keyboard exception!")
             cleanup()
         except:
             print "Something else happened, quitting"
-
-atexit.register(cleanup)
+            cleanup()
