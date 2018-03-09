@@ -1,18 +1,39 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 import os
 import time
 import re
+import requests
+import atexit
+import RPi.GPIO as GPIO
 from slackclient import SlackClient
+from picamera import PiCamera
 
+# Set LED Pinouts
+
+green = 18
+red = 23
+button = 17
+
+# Set some GPIO stuff
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+GPIO.setup(green, GPIO.OUT)
+GPIO.setup(red, GPIO.OUT)
+GPIO.setup(button, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+# Initial states for LEDs
+GPIO.output(green, GPIO.HIGH)
+GPIO.output(red, GPIO.LOW)
 
 # instantiate Slack client
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
-# starterbot's user ID in Slack: value is assigned after the bot starts up
 starterbot_id = None
 
-# constants
+# Slack constants
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
-EXAMPLE_COMMAND = "do"
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
+token = os.environ.get('SLACK_API_TOKEN')
 
 def parse_bot_commands(slack_events):
     """
@@ -41,13 +62,16 @@ def handle_command(command, channel):
         Executes bot command if the command is known
     """
     # Default response is help text for the user
-    default_response = "Not sure what you mean. Try *{}*.".format(EXAMPLE_COMMAND)
+    default_response = "Not sure what you mean. To share food, type *yum*. To see what's on camera now, type *hungry*."
 
     # Finds and executes the given command, filling in response
     response = None
     # This is where you start to implement more commands!
-    if command.startswith(EXAMPLE_COMMAND):
-        response = "Sure...write some more code then I can do that!"
+    if command.startswith('yum'):
+        response = share_noms()
+    elif command.startswith('hungry'):
+        response = see_noms()
+
 
     # Sends the response back to the channel
     slack_client.api_call(
@@ -55,6 +79,50 @@ def handle_command(command, channel):
         channel=channel,
         text=response or default_response
     )
+
+def share_noms():
+    """
+    Takes a pic and shares it with #random
+    TODO: Ask the user for some input, like "yum Delicious off-brand cola in the breakroom!" i guess?
+    """
+    message = "How kind of you to share!"
+    take_picture()
+    post_image()
+    return(message)
+def see_noms():
+    """
+    Just takes a photo of whatever is there and kicks it out
+    """
+    message = "美味しいものなの?"
+    return(message)
+
+def take_picture():
+    camera = PiCamera()
+    camera.resolution = (1920, 1080)
+    camera.start_preview()
+    time.sleep(2)
+    camera.capture('/home/april/gohan-time/images/oishii.jpg')
+    camera.close()
+
+def hook_post_image():
+    url = 'https://hooks.slack.com/services/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'
+    payload = '{"attachments": [{"fallback": "A picture of some food.", "text": "Delicious text.", "image_url": "https://i.redditmedia.com/FjGhVX9geusqgdBvBpi9C3UEcwOUOzaWZxTXXZX3o7I.jpg?w=768&s=95554cd6ab85522aa5507c221ea6a912"}]}'
+    requests.request("POST", url, data=payload)
+
+def post_image():
+    tasty_treat = {
+            'file' : ('/home/april/gohan-time/images/oishii.jpg', open('/home/april/gohan-time/images/oishii.jpg', 'rb'), 'jpg')
+            }
+    payload={
+            "filename":"oishii.jpg",
+            "token":token,
+            "channels":['#griz_test_chan'],
+            }
+    r = requests.post("https://slack.com/api/files.upload", params=payload, files=tasty_treat)
+
+def cleanup():
+    GPIO.cleanup()
+    print("Goodbye!")
 
 if __name__ == "__main__":
     if slack_client.rtm_connect(with_team_state=False):
@@ -68,3 +136,5 @@ if __name__ == "__main__":
             time.sleep(RTM_READ_DELAY)
     else:
         print("Connection failed. Exception traceback printed above.")
+
+atexit.register(cleanup)
