@@ -122,6 +122,7 @@ def post_image():
             }
     r = requests.post("https://slack.com/api/files.upload", params=payload, files=tasty_treat)
 
+'''
 def shutter():
     with picamera.PiCamera() as camera:
         camera.resolution = (1920, 1080)
@@ -136,7 +137,7 @@ def shutter():
         GPIO.output(red, GPIO.LOW)
         GPIO.output(green, GPIO.HIGH)
         share_noms()
-
+'''
 def handleSIGTERM():
     GPIO.cleanup()
 signal.signal(signal.SIGTERM, handleSIGTERM)
